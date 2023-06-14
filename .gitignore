@@ -1,0 +1,13 @@
+# gitignore
+
+# system file
+.DS_Store
+.idea/
+
+__pycache__/
+
+# raw data
+media/
+dataset/
+data/
+param/
