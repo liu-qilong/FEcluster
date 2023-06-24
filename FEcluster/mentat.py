@@ -5,25 +5,25 @@ class Mentat:
     def __init__(self, cwd: str = ".\\"):
         self.cwd = cwd
 
-    def connect(self, host: str = "127.0.0.1", port: int = 40007):
-        pm.py_connect(host, port)
-        pm.py_send(f'*change_directory "{self.cwd}"')
-
-    def disconnect(self):
-        pm.py_disconnect()
-
-    def open_model(self, model_dir: str):
-        pm.py_send(f'*open_model "{model_dir}"')
-
-    def close_model(self):
-        pm.py_send(f'*new_model yes')
-
     def exec_proc(self, proc: str):
         pm.py_send(proc)
     
     def exec_procs(self, procs: list):
         for proc in procs:
             self.exec_proc(proc)
+
+    def connect(self, host: str = "127.0.0.1", port: int = 40007):
+        pm.py_connect(host, port)
+        self.exec_proc(f'*change_directory "{self.cwd}"')
+
+    def disconnect(self):
+        pm.py_disconnect()
+
+    def open_model(self, model_dir: str):
+        self.exec_proc(f'*open_model "{model_dir}"')
+
+    def close_model(self):
+        self.exec_proc(f'*new_model yes')
 
     def export_dat(self, export_folder: str = '.\\output', export_name: str = 'input'):
         # create export_path if it doesn't exist
