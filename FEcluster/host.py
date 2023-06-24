@@ -11,6 +11,7 @@ class HostSession:
         self.local_cwd = local_cwd
         self.remote_cwd = remote_cwd
 
+        # init ssh connection
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh.load_system_host_keys()
@@ -20,70 +21,99 @@ class HostSession:
         self.local_mkdir(self.local_cwd, cwd='C:\\')
         self.remote_mkdir(self.remote_cwd, cwd='C:\\')
 
-    def remote_shell_exec(self, commands: str, cwd: str = None, description: str = "execute remote commands", is_log: bool = True):
+    def remote_shell_exec(self, commands: str, cwd: str = None, description: str = "execute remote commands", is_log: bool = True, **kwargs):
         if cwd is None:
             cwd = self.remote_cwd
 
-        stdin, stdout, stderr = self.ssh.exec_command(f'cd "{cwd}"; ' + commands)
+        _, stdout, stderr = self.ssh.exec_command(f'cd "{cwd}"; ' + commands)
         exit_status = stdout.channel.recv_exit_status()
 
-        if is_log:
-            self.write_log(exit_status, description)
+        def parse_io(io):
+            io_ls = io.readlines()
+            return "".join(io_ls)
 
-        return exit_status
+        return_dict = {
+            'exit': exit_status,
+            'stdout': parse_io(stdout),
+            'stderr': parse_io(stderr)
+        }
+
+        if is_log:
+            self.write_log(return_dict, description, **kwargs)
+
+        return return_dict
     
-    def local_shell_exec(self, commands: str, cwd: str = None, description: str = "execute local commands", is_log: bool = True):
+    def local_shell_exec(self, commands: str, cwd: str = None, description: str = "execute local commands", is_log: bool = True, **kwargs):
         if cwd is None:
             cwd = self.local_cwd
 
-        result = subprocess.run(commands, shell=True, cwd=cwd)
+        result = subprocess.run(commands, shell=True, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         exit_status = result.returncode
 
+        return_dict = {
+            'exit': exit_status,
+            'stdout': result.stdout.decode(),
+            'stderr': result.stderr.decode(),
+        }
+
         if is_log:
-            self.write_log(exit_status, description)
+            self.write_log(return_dict, description, **kwargs)
 
-        return exit_status
+        return return_dict
 
-    def remote_mkdir(self, folder: str, cwd: str = None):
-        if self.remote_shell_exec(commands=f'cd {folder}', cwd=cwd, is_log=False) == 0:
-            self.write_log(0, f'remote folder "{folder}" already exists')
+    def remote_mkdir(self, folder: str, cwd: str = None, **kwargs):
+        if self.remote_shell_exec(commands=f'cd {folder}', cwd=cwd, is_log=False)['exit'] == 0:
+            self.write_log({'exit': 0}, f'remote folder "{folder}" already exists')
 
         else:
             self.remote_shell_exec(
                 f'mkdir "{folder}"',
                 description = f'create remote folder "{folder}"',
                 cwd = cwd,
+                **kwargs,
                 )
 
-    def local_mkdir(self, folder: str, cwd: str = None):
-        if self.local_shell_exec(commands=f'cd {folder}', cwd=cwd, is_log=False) == 0:
-            self.write_log(0, f'local folder "{folder}" already exists')
+    def local_mkdir(self, folder: str, cwd: str = None, **kwargs):
+        if self.local_shell_exec(commands=f'cd {folder}', cwd=cwd, is_log=False)['exit'] == 0:
+            self.write_log({'exit': 0}, f'local folder "{folder}" already exists')
             
         else:
             self.local_shell_exec(
                 f'mkdir "{folder}"',
-                description = f'create remote folder "{folder}"',
+                description = f'create local folder "{folder}"',
                 cwd=cwd,
+                **kwargs,
                 )
 
-    def put_file(self, local_file_path: str, remote_file_folder: str, cwd: str = None, description: str = 'put file to remote folder'):
+    def put_file(self, local_file_path: str, remote_file_folder: str, description: str = 'put file to remote folder', **kwargs):
+        self.remote_mkdir(remote_file_folder)
+        file_name = os.path.split(local_file_path)[-1]
         self.local_shell_exec(
-            f'scp "{local_file_path}" "{self.user}@{self.host}:{remote_file_folder}"', 
+            f'scp "{local_file_path}" "{self.user}@{self.addr}:{os.path.join(self.remote_cwd, remote_file_folder, file_name)}"', 
             description=description,
-            cwd=cwd,
+            **kwargs,
             )
 
-    def put_file(self, remote_file_path: str, local_file_folder: str, cwd: str = None, description: str = 'get file from remote folder'):
+    def get_file(self, remote_file_path: str, local_file_folder: str, description: str = 'get file from remote folder', **kwargs):
+        self.local_mkdir(local_file_folder)
+        file_name = os.path.split(remote_file_path)[-1]
         self.local_shell_exec(
-            f'scp "{self.user}@{self.host}:{remote_file_path}" "{local_file_folder}" ', 
+            f'scp "{self.user}@{self.addr}:{os.path.join(self.remote_cwd, remote_file_path)}" "{os.path.join(local_file_folder, file_name)}"', 
             description=description,
-            cwd=cwd,
+            **kwargs,
             )
 
-    def write_log(self, exit_status: int, description: str):
+    def write_log(self, exec_return_dict: dict, description: str, print_stdout: bool = False, print_stderr: bool = False):
         current_time = time.strftime("%H:%M:%S")
 
-        if exit_status == 0:
+        if exec_return_dict['exit'] == 0:
             print(f'{self.user}@{self.addr}:{self.session_name}\n\033[32m{current_time} > successful > {description}\033[0m')
+
         else:
             print(f'{self.user}@{self.addr}:{self.session_name}\n\033[31m{current_time} > failed > {description}\033[0m')
+
+        if print_stdout:
+            print(exec_return_dict['stdout'])
+
+        if print_stderr:
+            print(exec_return_dict['stderr'])
