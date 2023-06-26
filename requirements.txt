@@ -1,4 +1,5 @@
 paramiko
+scp
 
 # jupyter notebook
 ipykernel
