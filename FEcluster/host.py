@@ -4,11 +4,13 @@ import paramiko
 import subprocess
 
 class HostSession:
-    def __init__(self, addr: str, user: str, pwd: str, local_cwd: str, remote_cwd: str, session_name: str = None):
+    def __init__(self, host_info: dict):
+        self.addr = host_info['addr']
+        self.user = host_info['user']
+        self.pwd = host_info['pwd']
+
+    def setup(self, local_cwd: str, remote_cwd: str, session_name: str = 'session'):
         self.session_name = session_name
-        self.addr = addr
-        self.user = user
-        self.pwd = pwd
         self.local_cwd = local_cwd
         self.remote_cwd = remote_cwd
 
