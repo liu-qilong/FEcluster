@@ -8,6 +8,7 @@ class HostSession:
         self.addr = host_info['addr']
         self.user = host_info['user']
         self.pwd = host_info['pwd']
+        self.marc = host_info['marc']
 
     def setup(self, local_cwd: str, remote_cwd: str, session_name: str = 'session'):
         self.session_name = session_name
@@ -87,7 +88,7 @@ class HostSession:
                 **kwargs,
                 )
 
-    def put_file(self, local_file_path: str, remote_file_folder: str, **kwargs):
+    def put_file(self, local_file_path: str, remote_file_folder: str = '', **kwargs):
         self.remote_mkdir(remote_file_folder)
         description = f'put file "{local_file_path}" to remote folder "{remote_file_folder}"'
 
@@ -103,7 +104,7 @@ class HostSession:
         except:
             self.write_log({'exit': 1}, description, **kwargs)
 
-    def get_file(self, remote_file_path: str, local_file_folder: str, **kwargs):
+    def get_file(self, remote_file_path: str, local_file_folder: str = '', **kwargs):
         self.local_mkdir(local_file_folder)
         description = f'get file "{remote_file_path}" to local folder "{local_file_folder}"'
 

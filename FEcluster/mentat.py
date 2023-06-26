@@ -1,4 +1,5 @@
 import os
+import time
 import py_mentat as pm
 
 class Mentat:
@@ -32,3 +33,8 @@ class Mentat:
             os.makedirs(export_path)
             
         pm.py_send(f'*write_marc "{os.path.join(export_folder, export_name)}.dat" yes')
+
+    def write_log(self, task_name: str = 'task', description: str = 'mentat interface operation'):
+        current_time = time.strftime("%H:%M:%S")
+
+        print(f'mentat:{task_name}\n\033[32m{current_time} > successful > {description}\033[0m')
