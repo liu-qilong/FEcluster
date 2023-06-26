@@ -21,7 +21,7 @@ class HostSession:
         self.local_mkdir(self.local_cwd, cwd='C:\\')
         self.remote_mkdir(self.remote_cwd, cwd='C:\\')
 
-    def remote_shell_exec(self, commands: str, cwd: str = None, description: str = "execute remote commands", is_log: bool = True, **kwargs):
+    def remote_shell_exec(self, commands: str, cwd: str = None, description: str = "execute remote commands", is_log: bool = True, **kwargs) -> dict:
         if cwd is None:
             cwd = self.remote_cwd
 
@@ -43,7 +43,7 @@ class HostSession:
 
         return return_dict
     
-    def local_shell_exec(self, commands: str, cwd: str = None, description: str = "execute local commands", is_log: bool = True, **kwargs):
+    def local_shell_exec(self, commands: str, cwd: str = None, description: str = "execute local commands", is_log: bool = True, **kwargs) -> dict:
         if cwd is None:
             cwd = self.local_cwd
 
