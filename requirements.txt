@@ -1,5 +1,5 @@
 paramiko
-scp
+# scp
 pyyaml
 
 # jupyter notebook
