@@ -21,6 +21,9 @@ class Cluster:
             self.mentat = mentat.Mentat(cwd=mentat_cwd)
             self.mentat.connect(mentat_host, mentat_port)
 
+        else:
+            self.mentat = None
+
         def service_thread():
             while not self.service_kill_event.is_set():
                 if not self.task_queue.empty():

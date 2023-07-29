@@ -14,24 +14,27 @@ class HostSession:
         self.session_name = session_name
         self.local_cwd = local_cwd
         self.remote_cwd = remote_cwd
-
+        self.log_path = os.path.join(self.local_cwd, "log.txt")
+        
         # init ssh connection
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self.ssh.connect(hostname=self.addr, username=self.user, password=self.pwd)
 
-        # create log file
-        with open(os.path.join(self.local_cwd, "log.txt"), "w") as file:
-            file.write(f'{self.user}@{self.addr}:{self.session_name}\n')
-            file.write(f"local path: {self.local_cwd}\n")
-            file.write(f"remote path: {self.user}@{self.addr}:{self.remote_cwd}\n")
-            file.write('-'*50 + '\n')
-
         # create local_cwd and remote_cwd if they don't exist
         self.local_mkdir(self.local_cwd, cwd='D:\\')
         self.remote_mkdir(self.remote_cwd, cwd='D:\\')
+        
+        # create log file
+        with open(self.log_path, "w") as file:
+            file.write(f"{self.user}@{self.addr}:{self.session_name}\n")
+            file.write(f"local path: {self.local_cwd}\n")
+            file.write(f"remote path: {self.remote_cwd}\n")
+            file.write("-" * 50 + "\n")
+        
+        self.write_log({'exit': 0}, 'setup host session')
 
-    def remote_shell_exec(self, commands: str, cwd: str = None, description: str = "execute remote commands", is_log: bool = True, **kwargs) -> dict:
+    def remote_shell_exec(self, commands: str, cwd: str = None, description: str = "execute remote commands", **kwargs) -> dict:
         if cwd is None:
             cwd = self.remote_cwd
 
@@ -45,15 +48,14 @@ class HostSession:
         return_dict = {
             'exit': exit_status,
             'stdout': parse_io(stdout),
-            'stderr': parse_io(stderr)
+            'stderr': parse_io(stderr),
         }
 
-        if is_log:
-            self.write_log(return_dict, description, **kwargs)
+        self.write_log(return_dict, description, **kwargs)
 
         return return_dict
     
-    def local_shell_exec(self, commands: str, cwd: str = None, description: str = "execute local commands", is_log: bool = True, **kwargs) -> dict:
+    def local_shell_exec(self, commands: str, cwd: str = None, description: str = "execute local commands", **kwargs) -> dict:
         if cwd is None:
             cwd = self.local_cwd
 
@@ -66,37 +68,44 @@ class HostSession:
             'stderr': result.stderr.decode(),
         }
 
-        if is_log:
-            self.write_log(return_dict, description, **kwargs)
+        self.write_log(return_dict, description, **kwargs)
 
         return return_dict
 
-    def remote_mkdir(self, folder: str, cwd: str = None, **kwargs):
-        if self.remote_shell_exec(commands=f'cd "{folder}"', cwd=cwd, is_log=False)['exit'] == 0:
-            self.write_log({'exit': 0}, f'remote folder "{folder}" already exists')
+    def remote_mkdir(self, folder: str, cwd: str = None, **kwargs) -> dict:
+        return_dict = self.remote_shell_exec(commands=f'cd "{folder}"', cwd=cwd, print_log=False)
+
+        if return_dict['exit'] == 0:
+            self.write_log(return_dict, f'remote folder "{folder}" already exists', **kwargs)
 
         else:
-            self.remote_shell_exec(
+            return_dict = self.remote_shell_exec(
                 f'mkdir "{folder}"',
                 description = f'create remote folder "{folder}"',
                 cwd = cwd,
                 **kwargs,
                 )
+            
+        return return_dict
 
-    def local_mkdir(self, folder: str, cwd: str = None, **kwargs):
-        if self.local_shell_exec(commands=f'cd "{folder}"', cwd=cwd, is_log=False)['exit'] == 0:
-            self.write_log({'exit': 0}, f'local folder "{folder}" already exists')
+    def local_mkdir(self, folder: str, cwd: str = None, **kwargs) -> dict:
+        return_dict = self.local_shell_exec(commands=f'cd "{folder}"', cwd=cwd, print_log=False)
+
+        if return_dict['exit'] == 0:
+            self.write_log(return_dict, f'local folder "{folder}" already exists', **kwargs)
             
         else:
-            self.local_shell_exec(
+            return_dict = self.local_shell_exec(
                 f'mkdir "{folder}"',
                 description = f'create local folder "{folder}"',
                 cwd = cwd,
                 **kwargs,
                 )
+            
+        return return_dict
 
-    def put_file(self, local_file_path: str, remote_file_folder: str = './', **kwargs):
-        self.remote_mkdir(remote_file_folder)
+    def put_file(self, local_file_path: str, remote_file_folder: str = './', **kwargs) -> dict:
+        self.remote_mkdir(remote_file_folder, print_log=False)
         description = f'put file "{local_file_path}" to remote folder "{remote_file_folder}"'
 
         try:
@@ -106,13 +115,18 @@ class HostSession:
                 os.path.join(self.local_cwd, local_file_path),
                 os.path.join(self.remote_cwd, remote_file_folder, file_name)
             )
-            self.write_log({'exit': 0}, description, **kwargs)
+
+            return_dict = {'exit': 0, 'std_out': '', 'std_err': ''}
+            self.write_log(return_dict, description, **kwargs)
 
         except:
-            self.write_log({'exit': 1}, description, **kwargs)
+            return_dict = {'exit': 1, 'std_out': '', 'std_err': ''}
+            self.write_log(return_dict, description, **kwargs)
 
-    def get_file(self, remote_file_path: str, local_file_folder: str = '', **kwargs):
-        self.local_mkdir(local_file_folder)
+        return return_dict
+
+    def get_file(self, remote_file_path: str, local_file_folder: str = './', **kwargs) -> dict:
+        self.local_mkdir(local_file_folder, print_log=False)
         description = f'get file "{remote_file_path}" to local folder "{local_file_folder}"'
 
         try:
@@ -122,30 +136,66 @@ class HostSession:
                 os.path.join(self.remote_cwd, remote_file_path),
                 os.path.join(self.local_cwd, local_file_folder, file_name)
             )
-            self.write_log({'exit': 0}, description, **kwargs)
+            return_dict = {'exit': 0, 'std_out': '', 'std_err': ''}
+            self.write_log(return_dict, description, **kwargs)
 
         except:
-            self.write_log({'exit': 1}, description, **kwargs)
+            return_dict = {'exit': 1, 'std_out': '', 'std_err': ''}
+            self.write_log(return_dict, description, **kwargs)
 
-    def write_log(self, exec_return_dict: dict, description: str, print_stdout: bool = False, print_stderr: bool = False):
+        return return_dict
+
+    def get_all_files(self, remote_file_folder: str = './', local_file_folder: str = './', filter: str = '', **kwargs) -> dict:
+        self.local_mkdir(local_file_folder, print_log=False)
+        description = f'get all files from "{remote_file_folder}" to local folder "{local_file_folder}"'
+
+        try:
+            scp = self.ssh.open_sftp()
+            files = scp.listdir(os.path.join(self.remote_cwd, remote_file_folder))
+            
+            for file in files:
+                if filter in file:
+                    self.get_file(
+                        os.path.join(remote_file_folder, file),
+                        local_file_folder,
+                        )
+            
+            return_dict = {'exit': 0, 'std_out': '', 'std_err': ''}
+            self.write_log(return_dict, description, **kwargs)
+
+        except:
+            return_dict = {'exit': 1, 'std_out': '', 'std_err': ''}
+            self.write_log(return_dict, description, **kwargs)
+
+        return return_dict
+
+    def write_log(self, exec_return_dict: dict, description: str, print_log: bool = True, print_stdout: bool = False, print_stderr: bool = False):
         # print and write log
-        current_time = time.strftime("%H:%M:%S")
-        host_str = f'{self.user}@{self.addr}:{self.session_name}'
+        if print_log:
+            current_time = time.strftime("%H:%M:%S")
+            host_str = f'{self.user}@{self.addr}:{self.session_name}'
 
-        if exec_return_dict['exit'] == 0:
-            log_str = f'{current_time} > successful > {description}'
-            print(f'{host_str}\n\033[32m{log_str}\033[0m')
+            if exec_return_dict['exit'] == 0:
+                log_str = f'{current_time} > successful > {description}'
+                print(f'{host_str}\n\033[32m{log_str}\033[0m')
 
-        else:
-            log_str = f'{current_time} > failed > {description}'
-            print(f'{host_str}\n\033[31m{log_str}\033[0m')
+            else:
+                log_str = f'{current_time} > failed > {description}'
+                print(f'{host_str}\n\033[31m{log_str}\033[0m')
 
-        with open(os.path.join(self.local_cwd, "log.txt"), "a") as file:
-            file.write(log_str + '\n')
+            with open(self.log_path, "a") as file:
+                file.write(log_str + '\n')
 
-        # print stdout or stderr
+        # print and write stdout
         if print_stdout:
             print(exec_return_dict['stdout'])
 
+            with open(self.log_path, "a") as file:
+                file.write('\n' + exec_return_dict['stdout'] + '\n')
+
+        # print and write stderr
         if print_stderr:
             print(exec_return_dict['stderr'])
+
+            with open(self.log_path, "a") as file:
+                file.write('\n' + exec_return_dict['stderr'] + '\n')
