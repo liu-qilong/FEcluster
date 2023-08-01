@@ -1,6 +1,6 @@
 paramiko
-# scp
 pyyaml
+numpy
 
 # jupyter notebook
 ipykernel
