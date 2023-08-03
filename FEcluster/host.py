@@ -35,18 +35,26 @@ class HostSession:
         if cwd is None:
             cwd = self.remote_cwd
 
-        _, stdout, stderr = self.ssh.exec_command(f'cd "{cwd}"; ' + commands)
-        exit_status = stdout.channel.recv_exit_status()
+        try:
+            _, stdout, stderr = self.ssh.exec_command(f'cd "{cwd}"; ' + commands)
+            exit_status = stdout.channel.recv_exit_status()
 
-        def parse_io(io):
-            io_ls = io.readlines()
-            return "".join(io_ls)
+            def parse_io(io):
+                io_ls = io.readlines()
+                return "".join(io_ls)
 
-        return_dict = {
-            'exit': exit_status,
-            'stdout': parse_io(stdout),
-            'stderr': parse_io(stderr),
-        }
+            return_dict = {
+                'exit': exit_status,
+                'stdout': parse_io(stdout),
+                'stderr': parse_io(stderr),
+            }
+        
+        except:
+            return_dict = {
+                'exit': 1,
+                'stdout': '',
+                'stderr': '',
+            }
 
         self.write_log(return_dict, description, **kwargs)
 
@@ -56,14 +64,22 @@ class HostSession:
         if cwd is None:
             cwd = self.local_cwd
 
-        result = subprocess.run(commands, shell=True, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        exit_status = result.returncode
+        try:
+            result = subprocess.run(commands, shell=True, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            exit_status = result.returncode
 
-        return_dict = {
-            'exit': exit_status,
-            'stdout': result.stdout.decode(),
-            'stderr': result.stderr.decode(),
-        }
+            return_dict = {
+                'exit': exit_status,
+                'stdout': result.stdout.decode(),
+                'stderr': result.stderr.decode(),
+            }
+
+        except:
+            return_dict = {
+                'exit': 1,
+                'stdout': '',
+                'stderr': '',
+            }
 
         self.write_log(return_dict, description, **kwargs)
 
