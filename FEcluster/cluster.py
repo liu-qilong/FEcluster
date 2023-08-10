@@ -64,7 +64,8 @@ class FECluster(Cluster):
                     task_obj = self.task_queue.get()
 
                     # mentat operation
-                    task_obj.mentat(self.mentat)
+                    if self.mentat is not None:
+                        task_obj.mentat(self.mentat)
 
                     # start job thread
                     session = self.allocate_host_session()
