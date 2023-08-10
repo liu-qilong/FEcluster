@@ -1,4 +1,4 @@
-from FEcluster import mentat, host
+from FEcluster import cluster, mentat, host
 
 class Task:
     def __init__(self, task_name: str = 'task'):
@@ -11,9 +11,16 @@ class Task:
 
     def job(self, host_session: host.HostSession):
         pass
+        self.stop_watch = True
+        self.complete_task(host_session)
 
     def watch(self, host_session: host.HostSession):
-        pass
+        while not self.stop_watch:
+            pass
+
+    def complete_task(self, host_session: host.HostSession):
+        self.complete = True
+        host_session.host_info['running_tasks'] -= 1
 
 
 class FETask(Task):

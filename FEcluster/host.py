@@ -4,8 +4,9 @@ import paramiko
 import subprocess
 
 class HostSession:
-    def __init__(self, host_info: dict):
-        self.host = host_info
+    def __init__(self, host_info: dict, host_name: str = 'host'):
+        self.host_info = host_info
+        self.host_name = host_name
 
     def setup(self, local_cwd: str, remote_cwd: str, session_name: str = 'session'):
         self.session_name = session_name
@@ -16,7 +17,7 @@ class HostSession:
         # init ssh connection
         self.ssh = paramiko.SSHClient()
         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh.connect(hostname=self.host['addr'], username=self.host['user'], password=self.host['pwd'])
+        self.ssh.connect(hostname=self.host_info['addr'], username=self.host_info['user'], password=self.host_info['pwd'])
 
         # create local_cwd and remote_cwd if they don't exist
         self.local_mkdir(self.local_cwd, cwd='D:\\')
@@ -24,7 +25,7 @@ class HostSession:
         
         # create log file
         with open(self.log_path, "w") as file:
-            file.write(f"{self.host['user']}@{self.host['addr']}:{self.session_name}\n")
+            file.write(f"{self.host_info['user']}@{self.host_info['addr']}:{self.session_name}\n")
             file.write(f"local path: {self.local_cwd}\n")
             file.write(f"remote path: {self.remote_cwd}\n")
             file.write("-" * 50 + "\n")
@@ -186,7 +187,7 @@ class HostSession:
         # print and write log
         if print_log:
             current_time = time.strftime("%H:%M:%S")
-            host_str = f"{self.host['user']}@{self.host['addr']}:{self.session_name}"
+            host_str = f"{self.host_info['user']}@{self.host_info['addr']}:{self.session_name}"
 
             if exec_return_dict['exit'] == 0:
                 log_str = f'{current_time} > successful > {description}'
